@@ -3,10 +3,11 @@ pragma solidity ^0.8.18;
 
 import {Test, console} from "forge-std/Test.sol";
 import {FundMe} from "../src/FundMe.sol";
+import {DeployFundMe} from "../script/DeployFundMe.s.sol";
 
 contract FundMeTest is Test {
     FundMe fundMe;
-
+    DeployFundMe deployFundMe;
     // Create test addresses
     address USER = makeAddr("user");
     address ANOTHER_USER = makeAddr("anotherUser");
@@ -18,7 +19,9 @@ contract FundMeTest is Test {
 
     function setUp() external {
         // Deploy the contract directly instead of using DeployFundMe
-        fundMe = new FundMe();
+        // fundMe = new FundMe(0x694AA1769357215DE4FAC081bf1f309aDC325306);
+        deployFundMe = new DeployFundMe();
+        fundMe = deployFundMe.run();
 
         // Fund test users with ETH
         vm.deal(USER, STARTING_BALANCE);
@@ -34,6 +37,11 @@ contract FundMeTest is Test {
 
     // Test if the owner is set correctly
     function testOwnerIsDeployer() public view {
-        assertEq(fundMe.i_owner(), address(this));
+        assertEq(fundMe.i_owner(), msg.sender);
+    }
+
+    function testPriceFeedVersionIsAccurate() public view {
+        uint256 version = fundMe.getVersion();
+        assertEq(version, 4);
     }
 }
