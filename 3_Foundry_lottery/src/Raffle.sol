@@ -36,20 +36,30 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // errors
     error Raffle__NotEnoughEthEntered();
     error Raffle__NotEnoughTimeHasPassed();
+    error Raffle__RaffleNotOpen();
+    error Raffle__TransferFailed();
+    /* Type declarations */
+    enum RaffleState {
+        OPEN,
+        CALCULATING
+    }
+
     // State variables
     uint256 private immutable i_entranceFee;
     uint256 private immutable i_interval; // duration of the raffle in seconds
     address payable[] private s_players;
-    uint256 private s_lastTimestamp;
+    uint256 private s_lastTimeStamp;
     bytes32 private immutable i_keyHash;
     uint64 private immutable i_subscriptionId;
     uint32 private immutable i_callbackGasLimit;
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
     uint32 private constant NUM_WORDS = 1;
+    address private s_recentWinner;
+    RaffleState private s_raffleState;
 
     // events
     event RaffleEntered(address indexed player);
-
+    event WinnerPicked(address indexed winner);
     // a constructor that initializes the entrance fee
     constructor(
         uint256 entranceFee,
@@ -61,10 +71,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
     ) VRFConsumerBaseV2Plus(vrfCoordinator) {
         i_entranceFee = entranceFee;
         i_interval = interval;
-        s_lastTimestamp = block.timestamp;
+        s_lastTimeStamp = block.timestamp;
         i_keyHash = gaslane;
         i_subscriptionId = subscriptionId;
         i_callbackGasLimit = callbackGasLimit;
+        s_raffleState = RaffleState.OPEN;
     }
 
     // a function to enter the raffle
@@ -78,9 +89,15 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
     // a function to pick a random winner
     function pickWinner() external {
-        if ((block.timestamp - s_lastTimestamp) < i_interval) {
+        if ((block.timestamp - s_lastTimeStamp) < i_interval) {
             revert Raffle__NotEnoughTimeHasPassed();
         }
+
+        if (s_raffleState != RaffleState.OPEN) {
+            revert Raffle__RaffleNotOpen();
+        }
+
+        s_raffleState = RaffleState.CALCULATING;
 
         VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient
             .RandomWordsRequest({
@@ -106,24 +123,24 @@ contract Raffle is VRFConsumerBaseV2Plus {
         uint256,
         /* requestId */ uint256[] calldata randomWords
     ) internal override {
-        // // s_players size 10
-        // // randomNumber 202
-        // // 202 % 10 ? what's doesn't divide evenly into 202?
-        // // 20 * 10 = 200
-        // // 2
-        // // 202 % 10 = 2
-        // uint256 indexOfWinner = randomWords[0] % s_players.length;
-        // address payable recentWinner = s_players[indexOfWinner];
-        // s_recentWinner = recentWinner;
-        // s_players = new address payable[](0);
-        // s_raffleState = RaffleState.OPEN;
-        // s_lastTimeStamp = block.timestamp;
-        // emit WinnerPicked(recentWinner);
-        // (bool success, ) = recentWinner.call{value: address(this).balance}("");
-        // // require(success, "Transfer failed");
-        // if (!success) {
-        //     revert Raffle__TransferFailed();
-        // }
+        // s_players size 10
+        // randomNumber 202
+        // 202 % 10 ? what's doesn't divide evenly into 202?
+        // 20 * 10 = 200
+        // 2
+        // 202 % 10 = 2
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[indexOfWinner];
+        s_recentWinner = recentWinner;
+        s_players = new address payable[](0);
+        s_raffleState = RaffleState.OPEN;
+        s_lastTimeStamp = block.timestamp;
+        emit WinnerPicked(recentWinner);
+        (bool success, ) = recentWinner.call{value: address(this).balance}("");
+        // require(success, "Transfer failed");
+        if (!success) {
+            revert Raffle__TransferFailed();
+        }
     }
 
     // a function to get the entrance fee
