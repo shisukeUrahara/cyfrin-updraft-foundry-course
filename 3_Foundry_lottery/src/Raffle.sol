@@ -31,13 +31,19 @@ pragma solidity ^0.8.19;
  */
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+import {AutomationCompatibleInterface} from "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatibleInterface.sol";
 
-contract Raffle is VRFConsumerBaseV2Plus {
+contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     // errors
     error Raffle__NotEnoughEthEntered();
     error Raffle__NotEnoughTimeHasPassed();
     error Raffle__RaffleNotOpen();
     error Raffle__TransferFailed();
+    error Raffle__UpkeepNotNeeded(
+        uint256 balance,
+        uint256 playersLength,
+        uint256 raffleState
+    );
     /* Type declarations */
     enum RaffleState {
         OPEN,
@@ -60,6 +66,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // events
     event RaffleEntered(address indexed player);
     event WinnerPicked(address indexed winner);
+    event RequestedRaffleWinner(uint256 requestId);
     // a constructor that initializes the entrance fee
     constructor(
         uint256 entranceFee,
@@ -87,20 +94,51 @@ contract Raffle is VRFConsumerBaseV2Plus {
         emit RaffleEntered(msg.sender);
     }
 
-    // a function to pick a random winner
-    function pickWinner() external {
-        if ((block.timestamp - s_lastTimeStamp) < i_interval) {
-            revert Raffle__NotEnoughTimeHasPassed();
-        }
+    /**
+     * @dev This is the function that the Chainlink Keeper nodes call
+     * they look for `upkeepNeeded` to return True.
+     * the following should be true for this to return true:
+     * 1. The time interval has passed between raffle runs.
+     * 2. The lottery is open.
+     * 3. The contract has ETH.
+     * 4. Implicity, your subscription is funded with LINK.
+     */
+    function checkUpkeep(
+        bytes memory /* checkData */
+    )
+        public
+        view
+        override
+        returns (bool upkeepNeeded, bytes memory /* performData */)
+    {
+        bool isOpen = RaffleState.OPEN == s_raffleState;
+        bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+        bool hasPlayers = s_players.length > 0;
+        bool hasBalance = address(this).balance > 0;
+        upkeepNeeded = (timePassed && isOpen && hasBalance && hasPlayers);
+        return (upkeepNeeded, "0x0"); // can we comment this out?
+    }
 
-        if (s_raffleState != RaffleState.OPEN) {
-            revert Raffle__RaffleNotOpen();
+    /**
+     * @dev Once `checkUpkeep` is returning `true`, this function is called
+     * and it kicks off a Chainlink VRF call to get a random winner.
+     */
+    function performUpkeep(bytes calldata /* performData */) external override {
+        (bool upkeepNeeded, ) = checkUpkeep("");
+        // require(upkeepNeeded, "Upkeep not needed");
+        if (!upkeepNeeded) {
+            revert Raffle__UpkeepNotNeeded(
+                address(this).balance,
+                s_players.length,
+                uint256(s_raffleState)
+            );
         }
 
         s_raffleState = RaffleState.CALCULATING;
 
-        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient
-            .RandomWordsRequest({
+        // Will revert if subscription is not set and funded.
+        uint256 requestId = s_vrfCoordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
                 keyHash: i_keyHash,
                 subId: i_subscriptionId,
                 requestConfirmations: REQUEST_CONFIRMATIONS,
@@ -110,9 +148,10 @@ contract Raffle is VRFConsumerBaseV2Plus {
                     // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
                     VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
                 )
-            });
-        // Will revert if subscription is not set and funded.
-        uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
+            })
+        );
+        // Quiz... is this redundant?
+        emit RequestedRaffleWinner(requestId);
     }
 
     /**
