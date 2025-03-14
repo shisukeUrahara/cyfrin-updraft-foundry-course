@@ -10,6 +10,17 @@ import {Vm} from "forge-std/Vm.sol";
 import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 import {LinkToken} from "../../test/mocks/LinkToken.sol";
 import {CodeConstants} from "../../script/HelperConfig.s.sol";
+import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+
+// Helper contract that can't receive ETH
+contract NoETHReceiver {
+    function enterRaffle(address raffleAddress) external payable {
+        (bool success, ) = raffleAddress.call{value: msg.value}(
+            abi.encodeWithSignature("enterRaffle()")
+        );
+        require(success, "Failed to enter raffle");
+    }
+}
 
 contract RaffleTest is Test, CodeConstants {
     /*//////////////////////////////////////////////////////////////
@@ -379,5 +390,200 @@ contract RaffleTest is Test, CodeConstants {
         assert(uint256(raffleState) == 0);
         assert(winnerBalance == startingBalance + prize);
         assert(endingTimeStamp > startingTimeStamp);
+    }
+
+    // Test for getEntranceFee view function
+    function testGetEntranceFee() public {
+        assertEq(raffle.getEntranceFee(), raffleEntranceFee);
+    }
+
+    // Test for getInterval view function
+    function testGetInterval() public {
+        assertEq(raffle.getInterval(), automationUpdateInterval);
+    }
+
+    // Test for getPlayersLength view function
+    function testGetPlayersLength() public {
+        assertEq(raffle.getPlayersLength(), 0);
+
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: raffleEntranceFee}();
+
+        assertEq(raffle.getPlayersLength(), 1);
+    }
+
+    // Test for getSubscriptionId view function
+    function testGetSubscriptionId() public {
+        assertEq(raffle.getSubscriptionId(), subscriptionId);
+    }
+
+    // Test for getPlayer view function
+    function testGetPlayer() public {
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: raffleEntranceFee}();
+
+        assertEq(raffle.getPlayer(0), PLAYER);
+    }
+
+    // Test for getRecentWinner view function
+    function testGetRecentWinner() public {
+        // Initially there should be no winner
+        assertEq(raffle.getRecentWinner(), address(0));
+
+        // Enter raffle and pick a winner
+        address expectedWinner = PLAYER;
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: raffleEntranceFee}();
+
+        vm.warp(block.timestamp + automationUpdateInterval + 1);
+        vm.roll(block.number + 1);
+
+        vm.recordLogs();
+        raffle.performUpkeep("");
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        uint256 requestId = 1;
+        if (entries.length >= 1 && entries[0].topics.length >= 1) {
+            bytes memory data = entries[0].data;
+            assembly {
+                requestId := mload(add(data, 32))
+            }
+        }
+
+        // Create a random number that will select our player as the winner
+        uint256[] memory randomWords = new uint256[](1);
+        randomWords[0] = 0; // This will pick the first player (index 0)
+
+        vm.prank(vrfCoordinatorV2_5);
+        raffle.rawFulfillRandomWords(requestId, randomWords);
+
+        assertEq(raffle.getRecentWinner(), expectedWinner);
+    }
+
+    // Test for checkUpkeep with enough time passed but no players
+    function testCheckUpkeepReturnsFalseIfEnoughTimePassedButNoPlayers()
+        public
+    {
+        // Arrange
+        vm.warp(block.timestamp + automationUpdateInterval + 1);
+        vm.roll(block.number + 1);
+
+        // Act
+        (bool upkeepNeeded, ) = raffle.checkUpkeep("");
+
+        // Assert
+        assert(!upkeepNeeded);
+    }
+
+    // Test for checkUpkeep with players but not enough time passed
+    function testCheckUpkeepReturnsFalseIfEnoughPlayersButNotEnoughTimePassed()
+        public
+    {
+        // Arrange
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: raffleEntranceFee}();
+
+        // Act
+        (bool upkeepNeeded, ) = raffle.checkUpkeep("");
+
+        // Assert
+        assert(!upkeepNeeded);
+    }
+
+    // Test for performUpkeep when raffle is not open
+    function testPerformUpkeepRevertsIfRaffleNotOpen() public {
+        // Arrange
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: raffleEntranceFee}();
+        vm.warp(block.timestamp + automationUpdateInterval + 1);
+        vm.roll(block.number + 1);
+        raffle.performUpkeep(""); // This puts the raffle in CALCULATING state
+
+        // Act / Assert
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Raffle.Raffle__UpkeepNotNeeded.selector,
+                address(raffle).balance,
+                1,
+                1
+            )
+        );
+        raffle.performUpkeep("");
+    }
+
+    // Test for the transfer failure case in fulfillRandomWords
+    function testFulfillRandomWordsHandlesTransferFailure()
+        public
+        raffleEntered
+        skipFork
+    {
+        // Arrange - Create a contract that can't receive ETH
+        NoETHReceiver noEthReceiver = new NoETHReceiver();
+
+        // Make this contract enter the raffle
+        vm.deal(address(noEthReceiver), raffleEntranceFee);
+        vm.prank(address(noEthReceiver));
+        raffle.enterRaffle{value: raffleEntranceFee}();
+
+        // Ensure only the non-receiving contract is in the raffle
+        assertEq(raffle.getPlayersLength(), 2); // PLAYER from modifier + noEthReceiver
+
+        // Act
+        vm.warp(block.timestamp + automationUpdateInterval + 1);
+        vm.roll(block.number + 1);
+
+        vm.recordLogs();
+        raffle.performUpkeep("");
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        uint256 requestId = 1;
+        if (entries.length >= 1 && entries[0].topics.length >= 1) {
+            bytes memory data = entries[0].data;
+            assembly {
+                requestId := mload(add(data, 32))
+            }
+        }
+
+        // Create a random number that will select our non-receiving contract as the winner
+        uint256[] memory randomWords = new uint256[](1);
+        randomWords[0] = 1; // This will pick the second player (index 1)
+
+        // Assert - This should revert with Raffle__TransferFailed
+        vm.expectRevert(Raffle.Raffle__TransferFailed.selector);
+        vm.prank(vrfCoordinatorV2_5);
+        raffle.rawFulfillRandomWords(requestId, randomWords);
+    }
+
+    function testRawFulfillRandomWordsCanOnlyBeCalledByVRFCoordinator()
+        public
+        raffleEntered
+        skipFork
+    {
+        // Arrange
+        vm.recordLogs();
+        raffle.performUpkeep("");
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        uint256 requestId = 1;
+        if (entries.length >= 1 && entries[0].topics.length >= 1) {
+            bytes memory data = entries[0].data;
+            assembly {
+                requestId := mload(add(data, 32))
+            }
+        }
+
+        uint256[] memory randomWords = new uint256[](1);
+        randomWords[0] = 123;
+
+        // Act / Assert
+        // The error is OnlyCoordinatorCanFulfill(caller, vrfCoordinator)
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                VRFConsumerBaseV2Plus.OnlyCoordinatorCanFulfill.selector,
+                address(this), // The caller (this test contract)
+                vrfCoordinatorV2_5 // The expected coordinator
+            )
+        );
+        raffle.rawFulfillRandomWords(requestId, randomWords);
     }
 }

@@ -98,7 +98,7 @@ contract RaffleTest is StdCheats, Test {
 
         // Arrange
         uint256 additionalEntrances = 3;
-        uint256 startingIndex = 1; // We have starting index be 1 so we can start with address(1) and not address(0)
+        uint256 startingIndex = 1;
 
         for (
             uint256 i = startingIndex;
@@ -106,7 +106,7 @@ contract RaffleTest is StdCheats, Test {
             i++
         ) {
             address player = address(uint160(i));
-            hoax(player, 1 ether); // deal 1 eth to the player
+            hoax(player, 1 ether);
             raffle.enterRaffle{value: raffleEntranceFee}();
         }
 
@@ -117,10 +117,21 @@ contract RaffleTest is StdCheats, Test {
         vm.recordLogs();
         raffle.performUpkeep(""); // emits requestId
         Vm.Log[] memory entries = vm.getRecordedLogs();
-        bytes32 requestId = entries[1].topics[1]; // get the requestId from the logs
+
+        // Get the requestId from the VRF Coordinator log (first log)
+        uint256 requestId = 1; // Default fallback
+        if (entries.length >= 1 && entries[0].topics.length >= 1) {
+            // The first log is from VRFCoordinatorV2_5Mock
+            // The requestId is in the data part of the event
+            bytes memory data = entries[0].data;
+            // The first 32 bytes in the data is the requestId
+            assembly {
+                requestId := mload(add(data, 32))
+            }
+        }
 
         VRFCoordinatorV2_5Mock(vrfCoordinatorV2_5).fulfillRandomWords(
-            uint256(requestId),
+            requestId,
             address(raffle)
         );
 
