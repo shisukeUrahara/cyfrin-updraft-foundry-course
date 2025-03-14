@@ -56,7 +56,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     address payable[] private s_players;
     uint256 private s_lastTimestamp;
     bytes32 private immutable i_keyHash;
-    uint64 private immutable i_subscriptionId;
+    uint256 private immutable i_subscriptionId;
     uint32 private immutable i_callbackGasLimit;
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
     uint32 private constant NUM_WORDS = 1;
@@ -73,7 +73,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
         uint256 interval,
         address vrfCoordinator,
         bytes32 gaslane, // keyHash for the gaslane
-        uint64 subscriptionId,
+        uint256 subscriptionId,
         uint32 callbackGasLimit
     ) VRFConsumerBaseV2Plus(vrfCoordinator) {
         i_entranceFee = entranceFee;
@@ -89,6 +89,9 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     function enterRaffle() external payable {
         if (msg.value < i_entranceFee) {
             revert Raffle__NotEnoughEthEntered();
+        }
+        if (s_raffleState != RaffleState.OPEN) {
+            revert Raffle__RaffleNotOpen();
         }
         s_players.push(payable(msg.sender));
         emit RaffleEntered(msg.sender);
@@ -190,5 +193,35 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     // a function to get the interval
     function getInterval() public view returns (uint256) {
         return i_interval;
+    }
+
+    // Get the raffle state
+    function getRaffleState() public view returns (RaffleState) {
+        return s_raffleState;
+    }
+
+    // Get a player at a specific index
+    function getPlayer(uint256 index) public view returns (address) {
+        return s_players[index];
+    }
+
+    // Get the number of players
+    function getPlayersLength() public view returns (uint256) {
+        return s_players.length;
+    }
+
+    // Get the recent winner
+    function getRecentWinner() public view returns (address) {
+        return s_recentWinner;
+    }
+
+    // Get the last timestamp
+    function getLastTimeStamp() public view returns (uint256) {
+        return s_lastTimestamp;
+    }
+
+    // Get the subscription ID
+    function getSubscriptionId() public view returns (uint256) {
+        return i_subscriptionId;
     }
 }
