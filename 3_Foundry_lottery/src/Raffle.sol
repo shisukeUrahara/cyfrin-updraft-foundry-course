@@ -54,7 +54,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     uint256 private immutable i_entranceFee;
     uint256 private immutable i_interval; // duration of the raffle in seconds
     address payable[] private s_players;
-    uint256 private s_lastTimeStamp;
+    uint256 private s_lastTimestamp;
     bytes32 private immutable i_keyHash;
     uint64 private immutable i_subscriptionId;
     uint32 private immutable i_callbackGasLimit;
@@ -78,7 +78,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
     ) VRFConsumerBaseV2Plus(vrfCoordinator) {
         i_entranceFee = entranceFee;
         i_interval = interval;
-        s_lastTimeStamp = block.timestamp;
+        s_lastTimestamp = block.timestamp;
         i_keyHash = gaslane;
         i_subscriptionId = subscriptionId;
         i_callbackGasLimit = callbackGasLimit;
@@ -112,7 +112,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
         returns (bool upkeepNeeded, bytes memory /* performData */)
     {
         bool isOpen = RaffleState.OPEN == s_raffleState;
-        bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+        bool timePassed = ((block.timestamp - s_lastTimestamp) > i_interval);
         bool hasPlayers = s_players.length > 0;
         bool hasBalance = address(this).balance > 0;
         upkeepNeeded = (timePassed && isOpen && hasBalance && hasPlayers);
@@ -173,7 +173,7 @@ contract Raffle is VRFConsumerBaseV2Plus, AutomationCompatibleInterface {
         s_recentWinner = recentWinner;
         s_players = new address payable[](0);
         s_raffleState = RaffleState.OPEN;
-        s_lastTimeStamp = block.timestamp;
+        s_lastTimestamp = block.timestamp;
         emit WinnerPicked(recentWinner);
         (bool success, ) = recentWinner.call{value: address(this).balance}("");
         // require(success, "Transfer failed");

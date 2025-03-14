@@ -16,3 +16,9 @@
 [submodule "3_Foundry_lottery/lib/chainlink-brownie-contracts"]
 	path = 3_Foundry_lottery/lib/chainlink-brownie-contracts
 	url = https://github.com/smartcontractkit/chainlink-brownie-contracts
+[submodule "3_Foundry_lottery/lib/solmate"]
+	path = 3_Foundry_lottery/lib/solmate
+	url = https://github.com/transmissions11/solmate
+[submodule "3_Foundry_lottery/lib/foundry-devops"]
+	path = 3_Foundry_lottery/lib/foundry-devops
+	url = https://github.com/cyfrin/foundry-devops
