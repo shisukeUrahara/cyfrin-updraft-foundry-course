@@ -1,16 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {Script, console2} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 import {OurToken} from "../src/OurToken.sol";
 
 contract DeployOurToken is Script {
-    uint256 public constant INITIAL_SUPPLY = 1_000_000 ether; // 1 million tokens with 18 decimal places
+    uint256 public constant INITIAL_SUPPLY = 100 ether;
 
-    function run() external returns (OurToken) {
+    function run() public returns (OurToken) {
         vm.startBroadcast();
-        OurToken ourToken = new OurToken(INITIAL_SUPPLY);
+        OurToken token = new OurToken(INITIAL_SUPPLY);
         vm.stopBroadcast();
-        return ourToken;
+        return token;
+    }
+    
+    // This function is used for testing
+    function deployForTest() public returns (OurToken) {
+        // No broadcast needed for testing
+        OurToken token = new OurToken(INITIAL_SUPPLY);
+        return token;
     }
 }
