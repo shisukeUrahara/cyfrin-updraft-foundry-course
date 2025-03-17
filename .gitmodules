@@ -25,3 +25,6 @@
 [submodule "4_Foundry_erc20-token/lib/forge-std"]
 	path = 4_Foundry_erc20-token/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "4_Foundry_erc20-token/lib/openzeppelin-contracts"]
+	path = 4_Foundry_erc20-token/lib/openzeppelin-contracts
+	url = https://github.com/openzeppelin/openzeppelin-contracts
