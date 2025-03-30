@@ -11,8 +11,8 @@ contract DeployMoodNft is Script {
         0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
 
     function run() external returns (MoodNft) {
-        string memory sadSvg = vm.readFile("./images/dynamicNft/sad.svg");
-        string memory happySvg = vm.readFile("./images/dynamicNft/happy.svg");
+        string memory sadSvg = vm.readFile("./img/sad.svg");
+        string memory happySvg = vm.readFile("./img/happy.svg");
 
         vm.startBroadcast();
         MoodNft moodNft = new MoodNft(
