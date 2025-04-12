@@ -57,6 +57,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__ZeroAddress();
     error DSCEngine__TransferFailed();
     error DSCEngine__HealthFactorIsBroken(uint256 healthFactor);
+    error DSCEngine__MintFailed();
     //////////////
     // State Variables //
     //////////////
@@ -171,7 +172,11 @@ contract DSCEngine is ReentrancyGuard {
         // Mint the DSC
         s_DSCMinted[msg.sender] += _amount;
         // if they don't have enough collateral, revert
-        revertIfHealthFactorIsBroken(msg.sender);
+        _revertIfHealthFactorIsBroken(msg.sender);
+        bool minted = i_dsc.mint(msg.sender, _amount);
+        if (!minted) {
+            revert DSCEngine__MintFailed();
+        }
     }
     function burnDSC(uint256 _amount) public {}
 
@@ -232,7 +237,7 @@ contract DSCEngine is ReentrancyGuard {
         return (collateralAdjustedForThreshold * PRECISION) / dscMinted;
     }
 
-    function revertIfHealthFactorIsBroken(address _user) internal view {
+    function _revertIfHealthFactorIsBroken(address _user) internal view {
         // get the health factor
         // if the health factor is broken, revert
         uint256 healthFactor = _healthFactor(_user);
