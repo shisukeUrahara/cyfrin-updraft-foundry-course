@@ -103,9 +103,9 @@ contract DSCEngine is ReentrancyGuard {
     //////////////
 
     constructor(
+        address _dsc,
         address[] memory _allowedTokens,
-        address[] memory _priceFeeds,
-        address _dsc
+        address[] memory _priceFeeds
     ) {
         if (_dsc == address(0)) {
             revert DSCEngine__ZeroAddress();
@@ -228,7 +228,7 @@ contract DSCEngine is ReentrancyGuard {
         // get the amount of collateral
         // get the amount of DSC minted
         // calculate the health factor
-        (uint256 collateralAmount, uint256 dscMinted) = _getAccountInformation(
+        (uint256 dscMinted, uint256 collateralAmount) = _getAccountInformation(
             user
         );
         uint256 collateralAdjustedForThreshold = (collateralAmount *
