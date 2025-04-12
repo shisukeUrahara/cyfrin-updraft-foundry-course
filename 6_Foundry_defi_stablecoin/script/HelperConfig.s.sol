@@ -39,12 +39,11 @@ contract HelperConfig is Script {
         address[] memory priceFeedAddresses = new address[](2);
 
         // Sepolia Addresses
-        // todo: add the correct addresses later
-        tokenAddresses[0] = 0x36e15B649a9D7cBf7bF44e41061F7AE53F58Afa5; // WETH
-        tokenAddresses[1] = 0x36e15B649a9D7cBf7bF44e41061F7AE53F58Afa5; // WBTC
+        tokenAddresses[0] = 0xdd13E55209Fd76AfE204dBda4007C227904f0a81; // WETH
+        tokenAddresses[1] = 0x1b44F3514812d835EB1BDB0acB33d3fA3351Ee43; // WBTC
 
-        priceFeedAddresses[0] = 0x36e15B649a9D7cBf7bF44e41061F7AE53F58Afa5; // ETH/USD
-        priceFeedAddresses[1] = 0x36e15B649a9D7cBf7bF44e41061F7AE53F58Afa5; // BTC/USD
+        priceFeedAddresses[0] = 0x694AA1769357215DE4FAC081bf1f309aDC325306; // ETH/USD
+        priceFeedAddresses[1] = 0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063; // BTC/USD
 
         return
             NetworkConfig({
