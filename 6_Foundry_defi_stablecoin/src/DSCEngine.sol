@@ -43,6 +43,7 @@ pragma solidity ^0.8.19;
 import {DecentralizedStableCoin} from "./DecentralizedStableCoin.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 contract DSCEngine is ReentrancyGuard {
     // Errors
@@ -63,6 +64,10 @@ contract DSCEngine is ReentrancyGuard {
     mapping(address _user => mapping(address _token => uint256 _amount))
         private s_collateralDeposited;
     DecentralizedStableCoin private immutable i_dsc;
+    mapping(address _user => uint256 _amount) private s_DSCMinted;
+    address[] private s_collateralTokens;
+    uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
+    uint256 private constant PRECISION = 1e18;
 
     /////////////
     // Events //
@@ -107,6 +112,7 @@ contract DSCEngine is ReentrancyGuard {
         }
         for (uint256 i = 0; i < _allowedTokens.length; i++) {
             s_allowedTokens[_allowedTokens[i]] = _priceFeeds[i];
+            s_collateralTokens.push(_allowedTokens[i]);
         }
         i_dsc = DecentralizedStableCoin(_dsc);
     }
@@ -149,11 +155,114 @@ contract DSCEngine is ReentrancyGuard {
         uint256 _redeemAmount
     ) public {}
 
-    function mintDSC(uint256 _amount) public {}
-
+    // @notice follows CEI (Checks, Effects, Interactions)
+    // @dev Explain to a developer any extra details
+    // @param _amount: The amount of DSC to mint
+    // @notice user must have more collateral than the amount of DSC they want to mint
+    // @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
+    function mintDSC(
+        uint256 _amount
+    ) external moreThanZero(_amount) nonReentrant {
+        // Check if the user has enough collateral
+        // Get the amount of collateral
+        // Burn the DSC
+        // Mint the DSC
+        s_DSCMinted[msg.sender] += _amount;
+        // if they don't have enough collateral, revert
+        revertIfHealthFactorIsBroken(msg.sender);
+    }
     function burnDSC(uint256 _amount) public {}
 
     function liquidate() public {}
 
     function getHealthFactor() public view returns (uint256) {}
+
+    /////////////////////////////////////////
+    // Private and internal view Functions //
+    /////////////////////////////////////////
+
+    /*
+    @notice: Internal view function to get the USD value of a collateral
+    @param _token: The address of the collateral token
+    @return: The USD value of the collateral
+    */
+    function getUsdValueOfCollateral(
+        address _token
+    ) internal view returns (uint256) {
+        // get the price of the token from the price feed
+        // get the amount of collateral from the user
+        // return the price * the amount of collateral
+        return 0;
+    }
+
+    /* 
+    @notice: Internal view function to get the amount of collateral and DSC minted by a user
+    @param user: The address of the user to get the information for
+    @return: The amount of collateral and DSC minted by the user
+    */
+    function _getAccountInformation(
+        address user
+    )
+        internal
+        view
+        returns (uint256 totalDscMinted, uint256 collateralValueInUsd)
+    {
+        totalDscMinted = s_DSCMinted[user];
+        collateralValueInUsd = getAccountCollateralValue(user);
+        return (totalDscMinted, collateralValueInUsd);
+    }
+
+    /*
+     * @notice: Internal view function to calculate the health factor of a user
+     * @param user: The address of the user to calculate the health factor for
+     * @return: The health factor of the user , if user gets below 1, they can be liquidated
+     */
+    function _healthFactor(address user) internal view returns (uint256) {
+        // get the amount of collateral
+        // get the amount of DSC minted
+        // calculate the health factor
+        (uint256 collateralAmount, uint256 dscMinted) = _getAccountInformation(
+            user
+        );
+        return 0;
+    }
+
+    function revertIfHealthFactorIsBroken(address _user) internal view {
+        // get the health factor
+        // if the health factor is broken, revert
+    }
+
+    /////////////////////////////////////////
+    // Public  and External  view Functions //
+    /////////////////////////////////////////
+    function getAccountCollateralValue(
+        address _user
+    ) public view returns (uint256 totalCollateralValueInUsd) {
+        // loop through all the collateral tokens
+        // get the price of the token from the price feed
+        // get the total amount of collateral value for given user and return it
+        // return the price * the amount of collateral
+        for (uint256 i = 0; i < s_collateralTokens.length; i++) {
+            address token = s_collateralTokens[i];
+            uint256 amount = s_collateralDeposited[_user][token];
+            totalCollateralValueInUsd += getUsdValueOfCollateral(token, amount);
+        }
+        return totalCollateralValueInUsd;
+    }
+
+    function getUsdValueOfCollateral(
+        address _token,
+        uint256 _amount
+    ) public view returns (uint256) {
+        // get the price of the token from the price feed
+        // get the amount of collateral from the user
+        // return the price * the amount of collateral
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(
+            s_allowedTokens[_token]
+        );
+        (, int256 price, , , ) = priceFeed.latestRoundData();
+
+        return
+            (uint256(price) * ADDITIONAL_FEED_PRECISION * _amount) / PRECISION;
+    }
 }

@@ -43,3 +43,6 @@
 [submodule "6_Foundry_defi_stablecoin/lib/openzeppelin-contracts"]
 	path = 6_Foundry_defi_stablecoin/lib/openzeppelin-contracts
 	url = https://github.com/openzeppelin/openzeppelin-contracts
+[submodule "6_Foundry_defi_stablecoin/lib/chainlink-brownie-contracts"]
+	path = 6_Foundry_defi_stablecoin/lib/chainlink-brownie-contracts
+	url = https://github.com/smartcontractkit/chainlink-brownie-contracts
