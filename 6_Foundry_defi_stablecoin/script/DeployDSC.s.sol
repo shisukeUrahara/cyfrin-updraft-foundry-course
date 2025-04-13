@@ -7,11 +7,17 @@ import {DSCEngine} from "../src/DSCEngine.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 
 contract DeployDSC is Script {
-    function run() external returns (DecentralizedStableCoin, DSCEngine) {
+    function run()
+        external
+        returns (
+            DecentralizedStableCoin,
+            DSCEngine,
+            HelperConfig.NetworkConfig memory config
+        )
+    {
         // Get the network configuration
         HelperConfig helperConfig = new HelperConfig();
-        HelperConfig.NetworkConfig memory config = helperConfig
-            .getActiveNetworkConfig();
+        config = helperConfig.getActiveNetworkConfig();
 
         // Start broadcasting transactions
         vm.startBroadcast();
@@ -27,6 +33,6 @@ contract DeployDSC is Script {
         );
 
         vm.stopBroadcast();
-        return (dsc, engine);
+        return (dsc, engine, config);
     }
 }

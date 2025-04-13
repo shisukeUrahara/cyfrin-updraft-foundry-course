@@ -188,20 +188,6 @@ contract DSCEngine is ReentrancyGuard {
     // Private and internal view Functions //
     /////////////////////////////////////////
 
-    /*
-    @notice: Internal view function to get the USD value of a collateral
-    @param _token: The address of the collateral token
-    @return: The USD value of the collateral
-    */
-    function getUsdValueOfCollateral(
-        address _token
-    ) internal view returns (uint256) {
-        // get the price of the token from the price feed
-        // get the amount of collateral from the user
-        // return the price * the amount of collateral
-        return 0;
-    }
-
     /* 
     @notice: Internal view function to get the amount of collateral and DSC minted by a user
     @param user: The address of the user to get the information for
@@ -259,12 +245,12 @@ contract DSCEngine is ReentrancyGuard {
         for (uint256 i = 0; i < s_collateralTokens.length; i++) {
             address token = s_collateralTokens[i];
             uint256 amount = s_collateralDeposited[_user][token];
-            totalCollateralValueInUsd += getUsdValueOfCollateral(token, amount);
+            totalCollateralValueInUsd += getUsdValueOfToken(token, amount);
         }
         return totalCollateralValueInUsd;
     }
 
-    function getUsdValueOfCollateral(
+    function getUsdValueOfToken(
         address _token,
         uint256 _amount
     ) public view returns (uint256) {
