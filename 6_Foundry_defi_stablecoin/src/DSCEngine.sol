@@ -58,6 +58,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__TransferFailed();
     error DSCEngine__HealthFactorIsBroken(uint256 healthFactor);
     error DSCEngine__MintFailed();
+    error DSCEngine__RedeemCollateralFailed();
     //////////////
     // State Variables //
     //////////////
@@ -76,6 +77,11 @@ contract DSCEngine is ReentrancyGuard {
     // Events //
     ////////////
     event CollateralDeposited(
+        address indexed user,
+        address indexed token,
+        uint256 amount
+    );
+    event CollateralRedeemed(
         address indexed user,
         address indexed token,
         uint256 amount
@@ -159,7 +165,26 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    function redeemCollateral(address _token, uint256 _amount) public {}
+    // @notice: Allow users to redeem collateral
+    // IN order to redeem collateral, the user must have enough collateral deposited
+    // and the health factor must be greater than 1 after collateral pull
+    // @param _token: The address of the collateral token
+    // @param _amount: The amount of collateral to redeem
+    // @dev: This function is a convenience function that redeems collateral and burns DSC in one step
+
+    function redeemCollateral(
+        address _token,
+        uint256 _amount
+    ) public moreThanZero(_amount) isAllowedToken(_token) nonReentrant {
+        s_collateralDeposited[msg.sender][_token] -= _amount;
+        emit CollateralRedeemed(msg.sender, _token, _amount);
+
+        bool success = IERC20(_token).transfer(msg.sender, _amount);
+        if (!success) {
+            revert DSCEngine__RedeemCollateralFailed();
+        }
+        _revertIfHealthFactorIsBroken(msg.sender);
+    }
 
     function redeemCollateralForDSC(
         address _token,
