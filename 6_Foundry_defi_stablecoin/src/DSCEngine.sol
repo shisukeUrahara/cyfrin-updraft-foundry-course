@@ -279,4 +279,14 @@ contract DSCEngine is ReentrancyGuard {
         return
             (uint256(price) * ADDITIONAL_FEED_PRECISION * _amount) / PRECISION;
     }
+
+    function getAllowedTokens() public view returns (address[] memory) {
+        return s_collateralTokens;
+    }
+
+    function getPriceFeedForToken(
+        address _token
+    ) public view returns (address) {
+        return s_allowedTokens[_token];
+    }
 }
