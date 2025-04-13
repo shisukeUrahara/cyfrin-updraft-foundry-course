@@ -123,11 +123,20 @@ contract DSCEngine is ReentrancyGuard {
     /////////////////////////
     // External Functions //
     ////////////////////////
+
+    // @notice: Allow users to deposit collateral and mint DSC
+    // @param _token: The address of the collateral token
+    // @param _amount: The amount of collateral to deposit
+    // @param _mintAmount: The amount of DSC to mint
+    // @dev: This function is a convenience function that deposits collateral and mints DSC in one step
     function depositCollateralAndMintDSC(
         address _token,
         uint256 _amount,
         uint256 _mintAmount
-    ) public {}
+    ) public {
+        depositCollateral(_token, _amount);
+        mintDSC(_mintAmount);
+    }
 
     /* 
     @notice: Allow users to deposit collateral and mint DSC
@@ -137,7 +146,7 @@ contract DSCEngine is ReentrancyGuard {
     function depositCollateral(
         address _collateral,
         uint256 _amount
-    ) external moreThanZero(_amount) isAllowedToken(_collateral) nonReentrant {
+    ) public moreThanZero(_amount) isAllowedToken(_collateral) nonReentrant {
         s_collateralDeposited[msg.sender][_collateral] += _amount;
         emit CollateralDeposited(msg.sender, _collateral, _amount);
         bool success = IERC20(_collateral).transferFrom(
@@ -165,7 +174,7 @@ contract DSCEngine is ReentrancyGuard {
     // @inheritdoc	Copies all missing tags from the base function (must be followed by the contract name)
     function mintDSC(
         uint256 _amount
-    ) external moreThanZero(_amount) nonReentrant {
+    ) public moreThanZero(_amount) nonReentrant {
         // Check if the user has enough collateral
         // Get the amount of collateral
         // Burn the DSC
