@@ -34,7 +34,7 @@ contract HelperConfig is Script {
         return s_activeNetworkConfig;
     }
 
-    function getSepoliaEthConfig() public view returns (NetworkConfig memory) {
+    function getSepoliaEthConfig() public pure returns (NetworkConfig memory) {
         address[] memory tokenAddresses = new address[](2);
         address[] memory priceFeedAddresses = new address[](2);
 
