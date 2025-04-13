@@ -59,6 +59,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__HealthFactorIsBroken(uint256 healthFactor);
     error DSCEngine__MintFailed();
     error DSCEngine__RedeemCollateralFailed();
+    error DSCEngine__BurnFailed();
     //////////////
     // State Variables //
     //////////////
@@ -212,7 +213,24 @@ contract DSCEngine is ReentrancyGuard {
             revert DSCEngine__MintFailed();
         }
     }
-    function burnDSC(uint256 _amount) public {}
+    function burnDSC(
+        uint256 _amount
+    ) public moreThanZero(_amount) nonReentrant {
+        // burn the DSC
+        // revert if the user has no DSC to burn
+        // update the amount of DSC minted
+        // update the health factor
+        // revert if the health factor is broken
+        // burn the DSC
+        s_DSCMinted[msg.sender] -= _amount;
+        bool success = i_dsc.transferFrom(msg.sender, address(this), _amount);
+        // bool success = i_dsc.burn(msg.sender, _amount);
+        if (!success) {
+            revert DSCEngine__BurnFailed();
+        }
+        i_dsc.burn(msg.sender, _amount);
+        _revertIfHealthFactorIsBroken(msg.sender); // MOST PROBABLY NOT NEEDED
+    }
 
     function liquidate() public {}
 
