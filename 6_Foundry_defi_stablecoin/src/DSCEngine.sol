@@ -187,11 +187,21 @@ contract DSCEngine is ReentrancyGuard {
         _revertIfHealthFactorIsBroken(msg.sender);
     }
 
+    /* 
+@notice: Allow users to redeem collateral for DSC
+@param _token: The address of the collateral token
+@param _amount: The amount of collateral to redeem
+@param _redeemAmount: The amount of DSC to redeem
+@dev: This function is a convenience function that burns DSC and redeems collateral in one step
+*/
     function redeemCollateralForDSC(
         address _token,
         uint256 _amount,
         uint256 _redeemAmount
-    ) public {}
+    ) public {
+        burnDSC(_redeemAmount);
+        redeemCollateral(_token, _amount);
+    }
 
     // @notice follows CEI (Checks, Effects, Interactions)
     // @dev Explain to a developer any extra details
