@@ -276,10 +276,11 @@ contract DSCEngine is ReentrancyGuard {
         // get the amount of collateral
         // get the amount of DSC minted
         // calculate the health factor
-        (uint256 dscMinted, uint256 collateralAmount) = _getAccountInformation(
-            user
-        );
-        uint256 collateralAdjustedForThreshold = (collateralAmount *
+        (
+            uint256 dscMinted,
+            uint256 collateralValueInUsd
+        ) = _getAccountInformation(user);
+        uint256 collateralAdjustedForThreshold = (collateralValueInUsd *
             LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
 
         return (collateralAdjustedForThreshold * PRECISION) / dscMinted;
