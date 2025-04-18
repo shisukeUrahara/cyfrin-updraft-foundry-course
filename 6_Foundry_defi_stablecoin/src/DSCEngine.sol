@@ -238,7 +238,7 @@ contract DSCEngine is ReentrancyGuard {
         if (!success) {
             revert DSCEngine__BurnFailed();
         }
-        i_dsc.burn(msg.sender, _amount);
+        i_dsc.burn(_amount);
         _revertIfHealthFactorIsBroken(msg.sender); // MOST PROBABLY NOT NEEDED
     }
 
