@@ -128,8 +128,36 @@ contract RebaseToken is ERC20 {
     }
 
     function burn(address _from, uint256 _amount) external {
+        // If max uint256 is passed as amount, we interpret this as a request to burn
+        // the user's entire balance. This is a common pattern that allows burning all
+        // tokens without needing to query the balance first in a separate call.
+        if (_amount == type(uint256).max) {
+            _amount = balanceOf(_from);
+        }
         _mintAccruedInterest(_from);
         _burn(_from, _amount);
+    }
+
+    function transfer(
+        address _to,
+        uint256 _amount
+    ) public override returns (bool) {
+        // We need to mint any accrued interest for both sender and receiver before the transfer
+        // This ensures interest is properly credited before modifying balances
+        _mintAccruedInterest(msg.sender);
+        _mintAccruedInterest(_to);
+
+        // If max uint256 is passed, interpret as request to transfer entire balance
+        // This is a convenience feature to avoid separate balanceOf call
+        if (_amount == type(uint256).max) {
+            _amount = balanceOf(msg.sender);
+        }
+
+        // If the recipient has no balance yet, they inherit the sender's interest rate
+        if (balanceOf(_to) == 0) {
+            s_userInterestRate[_to] = s_userInterestRate[msg.sender];
+        }
+        return super.transfer(_to, _amount);
     }
 
     function getInterestRate(address _user) external view returns (uint256) {
