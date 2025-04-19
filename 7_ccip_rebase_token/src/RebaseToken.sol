@@ -23,14 +23,15 @@ pragma solidity ^0.8.24;
 // view & pure functions
 
 import {ERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
-
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
+import {AccessControl} from "openzeppelin-contracts/contracts/access/AccessControl.sol";
 /**
  * @title RebaseToken
  * @author @ShisukeUrahara
  * @notice A token that incentivizes holding by rebasing the token supply
  * @notice The interrest rate can only be decreased, not increased
  */
-contract RebaseToken is ERC20 {
+contract RebaseToken is ERC20, Ownable, AccessControl {
     // errors
     error RebaseToken__CannotIncreaseInterestRate(
         uint256 oldInterestRate,
@@ -42,13 +43,19 @@ contract RebaseToken is ERC20 {
     mapping(address => uint256) private s_userInterestRate;
     mapping(address => uint256) private s_userLastUpdatedTimestamp;
     uint256 private constant PRECISION_FACTOR = 1e18;
+    bytes32 public constant MINT_AND_BURN_ROLE =
+        keccak256("MINT_AND_BURN_ROLE");
 
     // events
     event InterestRateSet(uint256 newInterestRate);
 
     // constructor
-    constructor() ERC20("RebaseToken", "RBT") {
+    constructor() ERC20("RebaseToken", "RBT") Ownable(msg.sender) {
         _mint(msg.sender, 1000000000000000000000000);
+    }
+
+    function grantMintAndBurnRole(address _to) external onlyOwner {
+        _grantRole(MINT_AND_BURN_ROLE, _to);
     }
 
     /**
@@ -57,7 +64,7 @@ contract RebaseToken is ERC20 {
      * @dev The new interest rate must be less than or equal to the current rate
      * @dev Interest rates are scaled by 1e18 (PRECISION_FACTOR)
      */
-    function setInterestRate(uint256 newInterestRate) external {
+    function setInterestRate(uint256 newInterestRate) external onlyOwner {
         if (newInterestRate > s_interestRate) {
             revert RebaseToken__CannotIncreaseInterestRate(
                 s_interestRate,
@@ -75,7 +82,10 @@ contract RebaseToken is ERC20 {
      * @dev The caller's interest rate is updated to the current global interest rate
      */
 
-    function mint(address _to, uint256 _amount) external {
+    function mint(
+        address _to,
+        uint256 _amount
+    ) external onlyRole(MINT_AND_BURN_ROLE) {
         _mintAccruedInterest(_to);
         s_userInterestRate[_to] = s_interestRate;
         _mint(_to, _amount);
@@ -140,7 +150,10 @@ contract RebaseToken is ERC20 {
      * @dev If _amount is max uint256, burns the entire balance including accrued interest
      * @dev Mints any accrued interest before burning to ensure accurate burning amount
      */
-    function burn(address _from, uint256 _amount) external {
+    function burn(
+        address _from,
+        uint256 _amount
+    ) external onlyRole(MINT_AND_BURN_ROLE) {
         // If max uint256 is passed as amount, we interpret this as a request to burn
         // the user's entire balance. This is a common pattern that allows burning all
         // tokens without needing to query the balance first in a separate call.
@@ -229,12 +242,23 @@ contract RebaseToken is ERC20 {
         return super.balanceOf(_user);
     }
 
+    /**
+     * @notice Gets the current interest rate for a specific user
+     * @param _user The address to get the interest rate for
+     * @return The user's current interest rate
+     * @dev This is a duplicate of getInterestRate(address) and should be deprecated
+     */
     function getUserInterestRate(
         address _user
     ) external view returns (uint256) {
         return s_userInterestRate[_user];
     }
 
+    /**
+     * @notice Gets the current global interest rate for the token
+     * @return The current global interest rate scaled by PRECISION_FACTOR
+     * @dev Interest rates are scaled by 1e18 (PRECISION_FACTOR)
+     */
     function getInterestRate() external view returns (uint256) {
         return s_interestRate;
     }
