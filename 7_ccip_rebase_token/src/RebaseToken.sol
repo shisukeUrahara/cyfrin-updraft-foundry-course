@@ -51,6 +51,12 @@ contract RebaseToken is ERC20 {
         _mint(msg.sender, 1000000000000000000000000);
     }
 
+    /**
+     * @notice Updates the global interest rate for the token
+     * @param newInterestRate The new interest rate to set
+     * @dev The new interest rate must be less than or equal to the current rate
+     * @dev Interest rates are scaled by 1e18 (PRECISION_FACTOR)
+     */
     function setInterestRate(uint256 newInterestRate) external {
         if (newInterestRate > s_interestRate) {
             revert RebaseToken__CannotIncreaseInterestRate(
@@ -127,6 +133,13 @@ contract RebaseToken is ERC20 {
         _mint(_user, accruedInterest);
     }
 
+    /**
+     * @notice Burns tokens from a specified address
+     * @param _from The address to burn tokens from
+     * @param _amount The amount of tokens to burn, or max uint256 to burn entire balance
+     * @dev If _amount is max uint256, burns the entire balance including accrued interest
+     * @dev Mints any accrued interest before burning to ensure accurate burning amount
+     */
     function burn(address _from, uint256 _amount) external {
         // If max uint256 is passed as amount, we interpret this as a request to burn
         // the user's entire balance. This is a common pattern that allows burning all
@@ -138,6 +151,15 @@ contract RebaseToken is ERC20 {
         _burn(_from, _amount);
     }
 
+    /**
+     * @notice Transfers tokens to another address
+     * @param _to The address to transfer tokens to
+     * @param _amount The amount of tokens to transfer, or max uint256 to transfer entire balance
+     * @return bool Returns true if the transfer was successful
+     * @dev Mints accrued interest for both sender and receiver before transfer
+     * @dev If recipient has no balance, they inherit sender's interest rate
+     * @dev Overrides ERC20 transfer to handle interest accrual
+     */
     function transfer(
         address _to,
         uint256 _amount
@@ -160,6 +182,40 @@ contract RebaseToken is ERC20 {
         return super.transfer(_to, _amount);
     }
 
+    /**
+     * @notice Transfers tokens from one address to another using allowance
+     * @param _from The address to transfer tokens from
+     * @param _to The address to transfer tokens to
+     * @param _amount The amount of tokens to transfer, or max uint256 to transfer entire balance
+     * @return bool Returns true if the transfer was successful
+     * @dev Mints accrued interest for both sender and receiver before transfer
+     * @dev If recipient has no balance, they inherit sender's interest rate
+     * @dev Overrides ERC20 transferFrom to handle interest accrual
+     */
+    function transferFrom(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) public override returns (bool) {
+        _mintAccruedInterest(_from);
+        _mintAccruedInterest(_to);
+
+        if (_amount == type(uint256).max) {
+            _amount = balanceOf(_from);
+        }
+
+        if (balanceOf(_to) == 0) {
+            s_userInterestRate[_to] = s_userInterestRate[_from];
+        }
+
+        return super.transferFrom(_from, _to, _amount);
+    }
+
+    /**
+     * @notice Gets the current interest rate for a specific user
+     * @param _user The address to get the interest rate for
+     * @return The user's current interest rate
+     */
     function getInterestRate(address _user) external view returns (uint256) {
         return s_userInterestRate[_user];
     }
