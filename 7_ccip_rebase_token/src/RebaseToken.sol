@@ -127,6 +127,11 @@ contract RebaseToken is ERC20 {
         _mint(_user, accruedInterest);
     }
 
+    function burn(address _from, uint256 _amount) external {
+        _mintAccruedInterest(_from);
+        _burn(_from, _amount);
+    }
+
     function getInterestRate(address _user) external view returns (uint256) {
         return s_userInterestRate[_user];
     }
