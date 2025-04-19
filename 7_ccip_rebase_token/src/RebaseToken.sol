@@ -70,8 +70,8 @@ contract RebaseToken is ERC20 {
      */
 
     function mint(address _to, uint256 _amount) external {
-        _mintAccruedInterest(to);
-        s_userInterestRate[msg.sender] = s_interestRate;
+        _mintAccruedInterest(_to);
+        s_userInterestRate[_to] = s_interestRate;
         _mint(_to, _amount);
     }
 
@@ -108,13 +108,23 @@ contract RebaseToken is ERC20 {
         return PRECISION_FACTOR + (userInterestRate * timeElapsed);
     }
 
+    /*
+     * @notice Calculates the accumulated interest factor for a user since their last update
+     * @param _user The address of the user to calculate interest for
+     * @return The accumulated interest factor scaled by PRECISION_FACTOR
+     * @dev Returns (1 + interest_rate * time_elapsed) using simple linear interest
+     * @dev The returned value is used as a multiplier to calculate total balance with interest
+     */
     function _mintAccruedInterest(address _user) internal {
         // 1. Calculate the accrued interest
-        uint256 accruedInterest = (s_interestRate * balanceOf(_user)) / 1e18;
-        // 2. Mint the accrued interest
-        _mint(_user, accruedInterest);
-        // 3. Update the last updated timestamp
+        uint256 previousPrincipleBalance = super.balanceOf(_user);
+        uint256 currentBalance = balanceOf(_user);
+        // accrued interest since the last update timestamp
+        uint256 accruedInterest = currentBalance - previousPrincipleBalance;
+        // update the last updated timestamp
         s_userLastUpdatedTimestamp[_user] = block.timestamp;
+        //  Mint the accrued interest
+        _mint(_user, accruedInterest);
     }
 
     function getInterestRate(address _user) external view returns (uint256) {
