@@ -39,6 +39,9 @@ contract RebaseToken is ERC20 {
 
     // state variables
     uint256 private s_interestRate = 5e10; // 1e18 ~1%
+    mapping(address => uint256) private s_userInterestRate;
+    mapping(address => uint256) private s_userLastUpdatedTimestamp;
+    uint256 private constant PRECISION_FACTOR = 1e18;
 
     // events
     event InterestRateSet(uint256 newInterestRate);
@@ -57,5 +60,64 @@ contract RebaseToken is ERC20 {
         }
         s_interestRate = newInterestRate;
         emit InterestRateSet(newInterestRate);
+    }
+    /**
+     * @notice Mints new tokens to the specified address and updates their interest rate
+     * @param _to The address to mint tokens to
+     * @param _amount The amount of tokens to mint
+     * @dev This function also mints any accrued interest before the new tokens are minted
+     * @dev The caller's interest rate is updated to the current global interest rate
+     */
+
+    function mint(address _to, uint256 _amount) external {
+        _mintAccruedInterest(to);
+        s_userInterestRate[msg.sender] = s_interestRate;
+        _mint(_to, _amount);
+    }
+
+    /**
+     * @notice Returns the current balance of a user including accrued interest
+     * @param _user The address to check the balance of
+     * @return The user's balance with accumulated interest
+     * @dev This overrides the standard ERC20 balanceOf to include interest calculations
+     * @dev The balance returned includes both the base balance and any pending interest
+     */
+    function balanceOf(address _user) public view override returns (uint256) {
+        // 1.) what we need is principle + simple interest
+        // simple interest = principle * interest rate * time
+        // so balance = principle * (1 + interest rate * time)
+        // so _calculateUserAccumulatedInterestSinceLastUpdate() is the(1+ interest rate * time)
+        return
+            (super.balanceOf(_user) *
+                _calculateUserAccumulatedInterestSinceLastUpdate(_user)) /
+            PRECISION_FACTOR;
+    }
+
+    function _calculateUserAccumulatedInterestSinceLastUpdate(
+        address _user
+    ) internal view returns (uint256) {
+        // we need to calculate the interest rate since the last update
+        // its simple linear interest
+        // check comments in balanceOf()
+        // for this function, we need to return (1+ interest rate * time)
+        // eg
+        uint256 timeElapsed = block.timestamp -
+            s_userLastUpdatedTimestamp[_user];
+        uint256 userInterestRate = s_userInterestRate[_user];
+
+        return PRECISION_FACTOR + (userInterestRate * timeElapsed);
+    }
+
+    function _mintAccruedInterest(address _user) internal {
+        // 1. Calculate the accrued interest
+        uint256 accruedInterest = (s_interestRate * balanceOf(_user)) / 1e18;
+        // 2. Mint the accrued interest
+        _mint(_user, accruedInterest);
+        // 3. Update the last updated timestamp
+        s_userLastUpdatedTimestamp[_user] = block.timestamp;
+    }
+
+    function getInterestRate(address _user) external view returns (uint256) {
+        return s_userInterestRate[_user];
     }
 }
