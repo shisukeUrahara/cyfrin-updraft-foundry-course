@@ -10,7 +10,7 @@ contract RebaseTokenTest is Test {
     Vault vault;
     address public owner = makeAddr("owner");
     address public user = makeAddr("user");
-
+    address public user2 = makeAddr("user2");
     function setUp() public {
         vm.startPrank(owner);
         rebaseToken = new RebaseToken();
@@ -144,5 +144,45 @@ contract RebaseTokenTest is Test {
         );
 
         vm.stopPrank();
+    }
+
+    function testTransfer(uint256 _amount, uint256 _sendAmount) public {
+        // _amount will always be greater than _sendAmount
+        _amount = bound(_amount, 2e5, type(uint96).max);
+        _sendAmount = bound(_sendAmount, 1e5, _amount - 1e5);
+
+        vm.deal(user, _amount);
+        vm.startPrank(user);
+        vault.deposit{value: _amount}();
+
+        uint256 initialUserBalance = rebaseToken.balanceOf(user);
+        uint256 initialUser2Balance = rebaseToken.balanceOf(user2);
+
+        assertEq(initialUserBalance, _amount);
+        assertEq(initialUser2Balance, 0);
+
+        // owner reduces the interest rate before the transfer
+        vm.stopPrank();
+        vm.startPrank(owner);
+        rebaseToken.setInterestRate(4e8);
+        vm.stopPrank();
+
+        // Transfer tokens from user to user2
+        vm.startPrank(user);
+        rebaseToken.transfer(user2, _sendAmount);
+        vm.stopPrank();
+
+        uint256 finalUserBalance = rebaseToken.balanceOf(user);
+        uint256 finalUser2Balance = rebaseToken.balanceOf(user2);
+
+        assertEq(finalUserBalance, initialUserBalance - _sendAmount);
+        assertEq(finalUser2Balance, _sendAmount);
+
+        // check user interest rates
+        uint256 userInterestRate = rebaseToken.getUserInterestRate(user);
+        uint256 user2InterestRate = rebaseToken.getUserInterestRate(user2);
+
+        assertEq(userInterestRate, 5e8);
+        assertEq(user2InterestRate, 5e8);
     }
 }
