@@ -75,4 +75,24 @@ contract RebaseTokenTest is Test {
         );
         vm.stopPrank();
     }
+
+    function testRedeemRightAway(uint256 _redeemAmount) public {
+        _redeemAmount = bound(_redeemAmount, 1e5, type(uint96).max);
+        vm.startPrank(user);
+        vm.deal(user, _redeemAmount);
+        // 1.) deposit into vault
+        vault.deposit{value: _redeemAmount}();
+        // 2.) check the balance of the user
+        uint256 balanceBeforeRedeem = rebaseToken.balanceOf(user);
+        assertEq(balanceBeforeRedeem, _redeemAmount);
+        // 3.) redeem the tokens
+        vault.redeem(type(uint256).max);
+        // 4.) check the balance of the user
+        uint256 balanceAfterRedeem = rebaseToken.balanceOf(user);
+        assertEq(balanceAfterRedeem, 0);
+        // 5.) check the eth balance of the user
+        uint256 ethBalance = address(user).balance;
+        assertEq(ethBalance, _redeemAmount);
+        vm.stopPrank();
+    }
 }
