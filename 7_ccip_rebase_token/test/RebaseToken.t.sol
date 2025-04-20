@@ -12,11 +12,14 @@ contract RebaseTokenTest is Test {
     address public owner = makeAddr("owner");
     address public user = makeAddr("user");
     address public user2 = makeAddr("user2");
+    address public user3 = makeAddr("user3");
+
     function setUp() public {
         vm.startPrank(owner);
         rebaseToken = new RebaseToken();
         vault = new Vault(address(rebaseToken));
         rebaseToken.grantRole(rebaseToken.MINT_AND_BURN_ROLE(), address(vault));
+        rebaseToken.grantRole(rebaseToken.MINT_AND_BURN_ROLE(), owner);
         // add some funds to the vault
         // vm.deal(address(vault), 100 ether);
         vm.stopPrank();
@@ -24,7 +27,8 @@ contract RebaseTokenTest is Test {
 
     function addRewardsToVault(uint256 amount) public {
         // send some rewards to the vault using the receive function
-        payable(address(vault)).call{value: amount}("");
+        (bool success, ) = payable(address(vault)).call{value: amount}("");
+        require(success, "Failed to send rewards to vault");
     }
 
     // a test case to test name
@@ -251,8 +255,155 @@ contract RebaseTokenTest is Test {
 
     function testInterestRateCanOnlyDecrease() public {
         vm.startPrank(owner);
-        vm.expectRevert();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RebaseToken.RebaseToken__CannotIncreaseInterestRate.selector,
+                5e8,
+                6e8
+            )
+        );
         rebaseToken.setInterestRate(6e8);
         vm.stopPrank();
+    }
+
+    // New tests to improve coverage
+
+    function testTransferFrom() public {
+        // Setup: user deposits tokens
+        vm.deal(user, 1000 ether);
+        vm.startPrank(user);
+        vault.deposit{value: 1000 ether}();
+
+        // Approve user2 to spend tokens
+        rebaseToken.approve(user2, 500 ether);
+        vm.stopPrank();
+
+        // user2 transfers tokens from user to user3
+        vm.startPrank(user2);
+        rebaseToken.transferFrom(user, user3, 500 ether);
+        vm.stopPrank();
+
+        // Check balances
+        assertEq(rebaseToken.balanceOf(user), 500 ether);
+        assertEq(rebaseToken.balanceOf(user3), 500 ether);
+    }
+
+    function testTransferMaxAmount() public {
+        // Setup: user deposits tokens
+        vm.deal(user, 1000 ether);
+        vm.startPrank(user);
+        vault.deposit{value: 1000 ether}();
+
+        // Transfer max amount (entire balance)
+        rebaseToken.transfer(user2, type(uint256).max);
+        vm.stopPrank();
+
+        // Check balances
+        assertEq(rebaseToken.balanceOf(user), 0);
+        assertEq(rebaseToken.balanceOf(user2), 1000 ether);
+    }
+
+    function testTransferFromMaxAmount() public {
+        // Setup: user deposits tokens
+        vm.deal(user, 1000 ether);
+        vm.startPrank(user);
+        vault.deposit{value: 1000 ether}();
+
+        // Approve user2 to spend tokens
+        rebaseToken.approve(user2, type(uint256).max);
+        vm.stopPrank();
+
+        // user2 transfers max amount from user to user3
+        vm.startPrank(user2);
+        rebaseToken.transferFrom(user, user3, type(uint256).max);
+        vm.stopPrank();
+
+        // Check balances
+        assertEq(rebaseToken.balanceOf(user), 0);
+        assertEq(rebaseToken.balanceOf(user3), 1000 ether);
+    }
+
+    function testVaultCannotDepositZero() public {
+        vm.startPrank(user);
+        vm.expectRevert(Vault.Vault__CannotDepositZero.selector);
+        vault.deposit{value: 0}();
+        vm.stopPrank();
+    }
+
+    function testVaultRedeemFailed() public {
+        // Setup: user deposits tokens
+        vm.deal(user, 1000 ether);
+        vm.startPrank(user);
+        vault.deposit{value: 1000 ether}();
+
+        // Ensure vault has no ETH balance by using vm.deal to set it to 0
+        vm.stopPrank();
+        vm.deal(address(vault), 0);
+
+        // Try to redeem without funding the vault
+        vm.startPrank(user);
+        vm.expectRevert(Vault.Vault__RedeemFailed.selector);
+        vault.redeem(type(uint256).max);
+        vm.stopPrank();
+    }
+
+    function testGrantMintAndBurnRole() public {
+        vm.startPrank(owner);
+        rebaseToken.grantMintAndBurnRole(user);
+        vm.stopPrank();
+
+        // Verify the role was granted
+        assertTrue(rebaseToken.hasRole(rebaseToken.MINT_AND_BURN_ROLE(), user));
+    }
+
+    function testSetInterestRate() public {
+        vm.startPrank(owner);
+        rebaseToken.setInterestRate(4e8);
+        assertEq(rebaseToken.getInterestRate(), 4e8);
+        vm.stopPrank();
+    }
+
+    function testMintAndUpdateTimestamp() public {
+        vm.startPrank(owner);
+        rebaseToken.mint(user, 1000 ether);
+        vm.stopPrank();
+
+        // Verify the tokens were minted
+        assertEq(rebaseToken.balanceOf(user), 1000 ether);
+
+        // Verify the interest rate was updated
+        assertEq(rebaseToken.getInterestRate(user), 5e8);
+    }
+
+    function testBurn() public {
+        // Setup: mint tokens to user
+        vm.startPrank(owner);
+        rebaseToken.mint(user, 1000 ether);
+        vm.stopPrank();
+
+        // Burn tokens
+        vm.startPrank(owner);
+        rebaseToken.burn(user, 500 ether);
+        vm.stopPrank();
+
+        // Verify the tokens were burned
+        assertEq(rebaseToken.balanceOf(user), 500 ether);
+    }
+
+    function testTransferToNewUser() public {
+        // Setup: user deposits tokens
+        vm.deal(user, 1000 ether);
+        vm.startPrank(user);
+        vault.deposit{value: 1000 ether}();
+
+        // Warp time to accrue interest
+        vm.warp(block.timestamp + 1 days);
+
+        // Transfer to user2 (who has no balance)
+        rebaseToken.transfer(user2, 500 ether);
+        vm.stopPrank();
+
+        // Verify user2 inherited user's interest rate
+        assertEq(rebaseToken.getInterestRate(user2), 5e8);
     }
 }
