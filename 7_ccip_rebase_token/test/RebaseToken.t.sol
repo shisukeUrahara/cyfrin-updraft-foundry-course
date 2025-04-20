@@ -21,6 +21,11 @@ contract RebaseTokenTest is Test {
         vm.stopPrank();
     }
 
+    function addRewardsToVault(uint256 amount) public {
+        // send some rewards to the vault using the receive function
+        payable(address(vault)).call{value: amount}("");
+    }
+
     // a test case to test name
     function testName() public view {
         assertEq(rebaseToken.name(), "RebaseToken");
@@ -93,6 +98,51 @@ contract RebaseTokenTest is Test {
         // 5.) check the eth balance of the user
         uint256 ethBalance = address(user).balance;
         assertEq(ethBalance, _redeemAmount);
+        vm.stopPrank();
+    }
+
+    function testRedeemAfterSomeTimeHasPassed(
+        uint256 _depositAmount,
+        uint256 _time
+    ) public {
+        _depositAmount = bound(_depositAmount, 1e5, type(uint96).max);
+        _time = bound(_time, 1 days, 10000 days);
+        vm.startPrank(user);
+        vm.deal(user, _depositAmount);
+        vault.deposit{value: _depositAmount}();
+
+        vm.warp(block.timestamp + _time);
+
+        uint256 balanceBeforeRedeem = rebaseToken.balanceOf(user);
+        uint256 ethBalanceBeforeRedeem = address(user).balance;
+
+        // Fund the vault with the FULL redemption amount
+        vm.stopPrank();
+        vm.startPrank(owner);
+        vm.deal(address(vault), balanceBeforeRedeem);
+        vm.stopPrank();
+
+        // Now redeem the tokens
+        vm.startPrank(user);
+        vault.redeem(type(uint256).max);
+
+        uint256 balanceAfterRedeem = rebaseToken.balanceOf(user);
+        uint256 ethBalanceAfterRedeem = address(user).balance;
+
+        // After redemption, token balance should be 0
+        assertEq(
+            balanceAfterRedeem,
+            0,
+            "Token balance should be 0 after redemption"
+        );
+
+        // ETH balance should be greater than before (due to interest)
+        assertGt(
+            ethBalanceAfterRedeem,
+            ethBalanceBeforeRedeem,
+            "ETH balance should increase after redemption"
+        );
+
         vm.stopPrank();
     }
 }
