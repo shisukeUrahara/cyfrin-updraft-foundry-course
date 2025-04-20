@@ -220,4 +220,39 @@ contract RebaseTokenTest is Test {
         rebaseToken.burn(user, 100);
         vm.stopPrank();
     }
+
+    function testGetPrincipalAmount(
+        uint256 _depositAmount,
+        uint256 _time
+    ) public {
+        _depositAmount = bound(_depositAmount, 1e5, type(uint96).max);
+        _time = bound(_time, 1000, type(uint96).max);
+        vm.startPrank(user);
+        vm.deal(user, _depositAmount);
+        vault.deposit{value: _depositAmount}();
+        vm.warp(block.timestamp + _time);
+        uint256 principalAmount = rebaseToken.principleBalanceOf(user);
+        assertEq(principalAmount, _depositAmount);
+        vm.stopPrank();
+    }
+
+    function testGetRebaseTokenAddress() public {
+        assertEq(address(rebaseToken), address(vault.getRebaseTokenAddress()));
+    }
+
+    function testGetInterestRate() public {
+        vm.startPrank(user);
+        vm.deal(user, 100);
+        vault.deposit{value: 100}();
+        uint256 interestRate = rebaseToken.getInterestRate(user);
+        assertEq(interestRate, 5e8);
+        vm.stopPrank();
+    }
+
+    function testInterestRateCanOnlyDecrease() public {
+        vm.startPrank(owner);
+        vm.expectRevert();
+        rebaseToken.setInterestRate(6e8);
+        vm.stopPrank();
+    }
 }
