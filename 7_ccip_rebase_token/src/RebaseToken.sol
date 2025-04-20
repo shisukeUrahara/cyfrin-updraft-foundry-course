@@ -155,12 +155,6 @@ contract RebaseToken is ERC20, Ownable, AccessControl {
         address _from,
         uint256 _amount
     ) external onlyRole(MINT_AND_BURN_ROLE) {
-        // If max uint256 is passed as amount, we interpret this as a request to burn
-        // the user's entire balance. This is a common pattern that allows burning all
-        // tokens without needing to query the balance first in a separate call.
-        if (_amount == type(uint256).max) {
-            _amount = balanceOf(_from);
-        }
         _mintAccruedInterest(_from);
         _burn(_from, _amount);
     }

@@ -47,6 +47,9 @@ contract Vault {
     }
 
     function redeem(uint256 _amount) external {
+        // If max uint256 is passed as amount, we interpret this as a request to redeem
+        // the user's entire balance. This is a common pattern that allows burning all
+        // tokens without needing to query the balance first in a separate call.
         if (_amount == type(uint256).max) {
             _amount = IRebaseToken(i_rebaseToken).balanceOf(msg.sender);
         }
