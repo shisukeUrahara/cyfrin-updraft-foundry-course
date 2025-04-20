@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {RebaseToken} from "../src/RebaseToken.sol";
 import {Vault} from "../src/Vault.sol";
 import {IRebaseToken} from "../src/Interfaces/IRebaseToken.sol";
+
 contract RebaseTokenTest is Test {
     RebaseToken rebaseToken;
     Vault vault;
@@ -184,5 +185,39 @@ contract RebaseTokenTest is Test {
 
         assertEq(userInterestRate, 5e8);
         assertEq(user2InterestRate, 5e8);
+    }
+
+    function testCannotSetInterestRateAboveCurrentRate() public {
+        vm.startPrank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RebaseToken.RebaseToken__CannotIncreaseInterestRate.selector,
+                5e8,
+                6e8
+            )
+        );
+        rebaseToken.setInterestRate(6e8);
+        vm.stopPrank();
+    }
+
+    function testCannotSetInterestRateIfNotOwner() public {
+        vm.startPrank(user);
+        vm.expectRevert();
+        rebaseToken.setInterestRate(6e8);
+        vm.stopPrank();
+    }
+
+    function testCannotMintIfNotOwner() public {
+        vm.startPrank(user);
+        vm.expectRevert();
+        rebaseToken.mint(user, 100);
+        vm.stopPrank();
+    }
+
+    function testCannotBurnIfNotOwner() public {
+        vm.startPrank(user);
+        vm.expectRevert();
+        rebaseToken.burn(user, 100);
+        vm.stopPrank();
     }
 }
