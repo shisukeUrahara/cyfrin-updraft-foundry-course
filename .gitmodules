@@ -52,3 +52,6 @@
 [submodule "7_ccip_rebase_token/lib/openzeppelin-contracts"]
 	path = 7_ccip_rebase_token/lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "7_ccip_rebase_token/lib/ccip"]
+	path = 7_ccip_rebase_token/lib/ccip
+	url = https://github.com/smartcontractkit/ccip

@@ -214,7 +214,7 @@ contract RebaseTokenTest is Test {
     function testCannotMintIfNotOwner() public {
         vm.startPrank(user);
         vm.expectRevert();
-        rebaseToken.mint(user, 100);
+        rebaseToken.mint(user, 100, rebaseToken.getInterestRate());
         vm.stopPrank();
     }
 
@@ -240,7 +240,7 @@ contract RebaseTokenTest is Test {
         vm.stopPrank();
     }
 
-    function testGetRebaseTokenAddress() public {
+    function testGetRebaseTokenAddress() public view {
         assertEq(address(rebaseToken), address(vault.getRebaseTokenAddress()));
     }
 
@@ -365,7 +365,7 @@ contract RebaseTokenTest is Test {
 
     function testMintAndUpdateTimestamp() public {
         vm.startPrank(owner);
-        rebaseToken.mint(user, 1000 ether);
+        rebaseToken.mint(user, 1000 ether, rebaseToken.getInterestRate());
         vm.stopPrank();
 
         // Verify the tokens were minted
@@ -378,7 +378,7 @@ contract RebaseTokenTest is Test {
     function testBurn() public {
         // Setup: mint tokens to user
         vm.startPrank(owner);
-        rebaseToken.mint(user, 1000 ether);
+        rebaseToken.mint(user, 1000 ether, rebaseToken.getInterestRate());
         vm.stopPrank();
 
         // Burn tokens
