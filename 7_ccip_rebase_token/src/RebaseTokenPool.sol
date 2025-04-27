@@ -31,9 +31,9 @@ contract RebaseTokenPool is TokenPool {
     constructor(
         IERC20 _token,
         address[] memory _allowList,
-        address _rnmProxy,
+        address _rmnProxy,
         address _router
-    ) TokenPool(_token, _allowList, _rnmProxy, _router) {}
+    ) TokenPool(_token, _allowList, _rmnProxy, _router) {}
 
     /// @notice Lock tokens into the pool or burn the tokens.
     /// @param lockOrBurnIn Encoded data fields for the processing of tokens on the source chain.
