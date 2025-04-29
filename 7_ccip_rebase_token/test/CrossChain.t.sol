@@ -279,5 +279,20 @@ contract CrossChainTest is Test {
             address(ethSepoliaRebaseToken),
             address(baseSepoliaRebaseToken)
         );
+
+        // bridge token from base sepolia to eth sepolia
+        vm.selectFork(baseSepoliaFork);
+        vm.warp(block.timestamp + 20 minutes);
+        vm.deal(user, SEND_VALUE);
+        //now we withdraw all the tokens from base sepolia to eth sepolia
+        bridgeToken(
+            IERC20(address(baseSepoliaRebaseToken)).balanceOf(user),
+            baseSepoliaFork,
+            ethSepoliaFork,
+            baseSepoliaNetworkDetails,
+            ethSepoliaNetworkDetails,
+            address(baseSepoliaRebaseToken),
+            address(ethSepoliaRebaseToken)
+        );
     }
 }

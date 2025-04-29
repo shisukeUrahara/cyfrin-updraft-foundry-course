@@ -8,4 +8,5 @@ interface IRebaseToken is IERC20 {
     function burn(address from, uint256 amount) external;
     function getInterestRate() external view returns (uint256);
     function getUserInterestRate(address user) external view returns (uint256);
+    function grantMintAndBurnRole(address user) external;
 }
