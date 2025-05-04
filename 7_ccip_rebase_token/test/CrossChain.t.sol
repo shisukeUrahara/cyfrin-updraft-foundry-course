@@ -34,8 +34,11 @@ contract CrossChainTest is Test {
     function setUp() public {
         uint256 ethSepoliaChainId = 11155111;
         uint256 baseSepoliaChainId = 84532;
-        ethSepoliaFork = vm.createSelectFork("eth-sepolia");
-        baseSepoliaFork = vm.createFork("base-sepolia");
+        string memory ethSepoliaUrl = vm.envString("ETH_SEPOLIA_RPC_URL");
+        string memory baseSepoliaUrl = vm.envString("BASE_SEPOLIA_RPC_URL");
+
+        ethSepoliaFork = vm.createSelectFork(ethSepoliaUrl);
+        baseSepoliaFork = vm.createFork(baseSepoliaUrl);
         ccipLocalSimulatorFork = new CCIPLocalSimulatorFork();
 
         ethSepoliaNetworkDetails = ccipLocalSimulatorFork.getNetworkDetails(

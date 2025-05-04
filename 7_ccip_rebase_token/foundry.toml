@@ -2,7 +2,6 @@
 src = "src"
 out = "out"
 libs = ["lib"]
-rpc_endpoints={eth-sepolia="https://eth-sepolia.g.alchemy.com/v2/xrujstdZvh7yJvOZCmlZz5G5BQaiIhwk",base-sepolia="https://base-sepolia.g.alchemy.com/v2/xrujstdZvh7yJvOZCmlZz5G5BQaiIhwk"}
 remappings = [
     "forge-std/=lib/forge-std/src/",
     "@openzeppelin/=lib/openzeppelin-contracts",
